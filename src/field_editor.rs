@@ -8,7 +8,7 @@ use wasm_bindgen_futures::spawn_local;
 
 #[server(GetFields)]
 pub async fn get_fields() -> Result<Fields, ServerFnError> {
-    let mut db = DbManager::new("sqlite:fields.db");
+    let mut db = DbManager::new("sqlite:/tmp/fields.db");
     db.initialize()
         .await
         .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
@@ -29,7 +29,11 @@ pub async fn update_fields(
     field4: String,
     expected_version: i64,
 ) -> Result<bool, ServerFnError> {
-    let mut db = DbManager::new("sqlite:fields.db");
+    dbg!(format!(
+        "server-fn: Updating fields with version: {}",
+        expected_version
+    ));
+    let mut db = DbManager::new("sqlite:/tmp/fields.db");
     db.initialize()
         .await
         .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
@@ -44,9 +48,17 @@ pub async fn update_fields(
 
 #[component]
 pub fn FieldEditor() -> impl IntoView {
+    leptos::logging::debug_warn!("FieldEditor component loaded");
     // Set up client state
     let source = RwSignal::new(());
-    let fields = Resource::new(move || source.get(), |_| async move { get_fields().await });
+    let fields = Resource::new(
+        move || source.get(),
+        |_| async move {
+            let x = get_fields().await;
+            leptos::logging::debug_warn!("Got fields");
+            x
+        },
+    );
 
     let edit_field1 = RwSignal::new(String::new());
     let edit_field2 = RwSignal::new(String::new());

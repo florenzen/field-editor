@@ -3,23 +3,27 @@
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
     use actix_web::*;
-    use leptos::prelude::*;
-    use leptos::config::get_configuration;
-    use leptos_meta::MetaTags;
-    use leptos_actix::{generate_route_list, LeptosRoutes};
     use field_editor::app::*;
     use field_editor::db::DbManager;
+    use leptos::config::get_configuration;
+    use leptos::prelude::*;
+    use leptos_actix::{generate_route_list, LeptosRoutes};
+    use leptos_meta::MetaTags;
 
     let conf = get_configuration(Some("Cargo.toml")).unwrap();
-    let addr =  conf.leptos_options.site_addr;
+    let addr = conf.leptos_options.site_addr;
 
-    // Initialize the database at server startup - using in-memory SQLite database for simplicity
-    let mut db = DbManager::new("sqlite::memory:");
+    // Create the database path in a location that's writable
+    // Use a file-based database that can be shared between connections
+    let db_path = "/tmp/fields.db";
+    let mut db = DbManager::new(&format!("sqlite:{}", db_path));
     // Initialize the database synchronously before creating the server
     futures::executor::block_on(db.initialize()).expect("Failed to initialize database");
-    
+
+    println!("Database initialized at {}", db_path);
+
     println!("listening on http://{}", &addr);
-    
+
     HttpServer::new(move || {
         // Generate the list of routes in your Leptos App
         let routes = generate_route_list(App);

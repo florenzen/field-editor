@@ -74,6 +74,7 @@ impl DbManager {
 
     // Get all field values with their current version
     pub async fn get_fields(&self) -> Result<Fields, sqlx::Error> {
+        dbg!("Fetching fields");
         let pool = self.pool.as_ref().expect("Database not initialized");
         
         // Fetch fields using query_as instead of the macro
@@ -82,7 +83,7 @@ impl DbManager {
         )
         .fetch_one(pool.as_ref())
         .await?;
-        
+        dbg!(&fields);
         Ok(fields)
     }
 
@@ -95,6 +96,7 @@ impl DbManager {
         field4: &str, 
         expected_version: i64
     ) -> Result<bool, sqlx::Error> {
+        dbg!(format!("Updating fields with version: {}", expected_version));
         let pool = self.pool.as_ref().expect("Database not initialized");
         
         // Start a transaction
