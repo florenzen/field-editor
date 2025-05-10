@@ -1,4 +1,3 @@
-// filepath: /workspaces/leptos-ssr-concurrency/field-editor/src/field_editor.rs
 use crate::db::{DbManager, Fields};
 use leptos::prelude::*;
 use leptos::suspense::Suspense;
