@@ -1,18 +1,23 @@
 // filepath: /workspaces/leptos-ssr-concurrency/field-editor/src/field_editor.rs
 use crate::db::{DbManager, Fields};
-use leptos::*;
-use leptos::suspense::Suspense;
 use leptos::prelude::*;
+use leptos::suspense::Suspense;
+use leptos::*;
 use server_fn::error::ServerFnError;
 use wasm_bindgen_futures::spawn_local;
 
 #[server(GetFields)]
 pub async fn get_fields() -> Result<Fields, ServerFnError> {
     let mut db = DbManager::new("sqlite:fields.db");
-    db.initialize().await.map_err(|e| ServerFnError::ServerError(e.to_string()))?;
-    
-    let fields = db.get_fields().await.map_err(|e| ServerFnError::ServerError(e.to_string()))?;
-    
+    db.initialize()
+        .await
+        .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
+
+    let fields = db
+        .get_fields()
+        .await
+        .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
+
     Ok(fields)
 }
 
@@ -25,12 +30,15 @@ pub async fn update_fields(
     expected_version: i64,
 ) -> Result<bool, ServerFnError> {
     let mut db = DbManager::new("sqlite:fields.db");
-    db.initialize().await.map_err(|e| ServerFnError::ServerError(e.to_string()))?;
-    
-    let success = db.update_fields(&field1, &field2, &field3, &field4, expected_version)
+    db.initialize()
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
-    
+        .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
+
+    let success = db
+        .update_fields(&field1, &field2, &field3, &field4, expected_version)
+        .await
+        .map_err(|e| ServerFnError::<sqlx::Error>::ServerError(e.to_string()))?;
+
     Ok(success)
 }
 
@@ -38,11 +46,8 @@ pub async fn update_fields(
 pub fn FieldEditor() -> impl IntoView {
     // Set up client state
     let source = RwSignal::new(());
-    let fields = Resource::new(
-        move || source.get(),
-        |_| async move { get_fields().await }
-    );
-    
+    let fields = Resource::new(move || source.get(), |_| async move { get_fields().await });
+
     let edit_field1 = RwSignal::new(String::new());
     let edit_field2 = RwSignal::new(String::new());
     let edit_field3 = RwSignal::new(String::new());
@@ -50,7 +55,7 @@ pub fn FieldEditor() -> impl IntoView {
     let version = RwSignal::new(0);
     let show_error = RwSignal::new(false);
     let saving = RwSignal::new(false);
-    
+
     // Load initial data
     create_effect(move |_| {
         if let Some(Ok(data)) = fields.get() {
@@ -61,35 +66,36 @@ pub fn FieldEditor() -> impl IntoView {
             version.set(data.version);
         }
     });
-    
+
     // Handle save action
     let on_save = move |_| {
         saving.set(true);
         show_error.set(false);
-        
+
         spawn_local(async move {
             let result = update_fields(
-                edit_field1.get(), 
-                edit_field2.get(), 
-                edit_field3.get(), 
-                edit_field4.get(), 
-                version.get()
-            ).await;
-            
+                edit_field1.get(),
+                edit_field2.get(),
+                edit_field3.get(),
+                edit_field4.get(),
+                version.get(),
+            )
+            .await;
+
             saving.set(false);
-            
+
             match result {
                 Ok(true) => {
                     // Successfully saved
                     // Refresh the data to get the new version
                     source.set(());
-                },
+                }
                 Ok(false) => {
                     // Concurrency conflict - someone else updated the data
                     show_error.set(true);
                     // Refresh the data to get the latest values
                     source.set(());
-                },
+                }
                 Err(_) => {
                     // Error saving
                     show_error.set(true);
@@ -97,12 +103,12 @@ pub fn FieldEditor() -> impl IntoView {
             }
         });
     };
-    
+
     // Define the view
     view! {
         <div class="field-editor">
             <h1>"Field Editor"</h1>
-            
+
             <Suspense fallback=move || view! { <div>"Loading..."</div> }>
                 {move || {
                     fields.get().map(|fields_result| match fields_result {
@@ -111,7 +117,7 @@ pub fn FieldEditor() -> impl IntoView {
                             <div>
                                 <div class="form-group">
                                     <label for="field1">"Field 1"</label>
-                                    <input 
+                                    <input
                                         id="field1"
                                         type="text"
                                         prop:value=edit_field1
@@ -120,10 +126,10 @@ pub fn FieldEditor() -> impl IntoView {
                                         }
                                     />
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="field2">"Field 2"</label>
-                                    <input 
+                                    <input
                                         id="field2"
                                         type="text"
                                         prop:value=edit_field2
@@ -132,10 +138,10 @@ pub fn FieldEditor() -> impl IntoView {
                                         }
                                     />
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="field3">"Field 3"</label>
-                                    <input 
+                                    <input
                                         id="field3"
                                         type="text"
                                         prop:value=edit_field3
@@ -144,10 +150,10 @@ pub fn FieldEditor() -> impl IntoView {
                                         }
                                     />
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="field4">"Field 4"</label>
-                                    <input 
+                                    <input
                                         id="field4"
                                         type="text"
                                         prop:value=edit_field4
@@ -156,19 +162,19 @@ pub fn FieldEditor() -> impl IntoView {
                                         }
                                     />
                                 </div>
-                                
-                                <button 
+
+                                <button
                                     on:click=on_save
                                     disabled=saving
                                 >
                                     {move || if saving.get() { "Saving..." } else { "Save Changes" }}
                                 </button>
-                                
+
                                 {move || {
                                     if show_error.get() {
                                         view! {
                                             <div class="error-message">
-                                                "Save failed. Another user has updated the fields since you loaded them. 
+                                                "Save failed. Another user has updated the fields since you loaded them.
                                                 Your changes have been discarded and the fields now show the current values. 
                                                 Please try again."
                                             </div>
