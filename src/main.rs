@@ -10,11 +10,11 @@ async fn main() -> std::io::Result<()> {
     use field_editor::app::*;
     use field_editor::db::DbManager;
 
-    let conf = get_configuration(None).unwrap();
+    let conf = get_configuration(Some("Cargo.toml")).unwrap();
     let addr =  conf.leptos_options.site_addr;
 
-    // Initialize the database at server startup
-    let mut db = DbManager::new("sqlite:fields.db");
+    // Initialize the database at server startup - using in-memory SQLite database for simplicity
+    let mut db = DbManager::new("sqlite::memory:");
     // Initialize the database synchronously before creating the server
     futures::executor::block_on(db.initialize()).expect("Failed to initialize database");
     
